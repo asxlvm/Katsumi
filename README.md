@@ -1,5 +1,5 @@
 # Katsumi
-One of the best free nukers! Made with Python
+Hey, if you're seeing this, hi, this is my project for learning dc.py and asyncio, take a look, I guess. Made with Python
 
 ## How-To
 1. Make sure you have an empty dictionary `{}` in your `settings.json` file that will be in the same directory as `main.py`
